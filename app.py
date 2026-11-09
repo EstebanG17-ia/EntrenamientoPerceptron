@@ -7,8 +7,7 @@ from perceptron import Perceptron, fmt
 st.set_page_config(page_title="Perceptrón monocapa", layout="wide")
 
 ENTRADAS = [(0, 0), (0, 1), (1, 0), (1, 1)]
-COMPUERTAS = {"AND": [0, 0, 0, 1], "OR": [0, 1, 1, 1], "NAND": [1, 1, 1, 0],
-              "NOR": [1, 0, 0, 0], "XOR": [0, 1, 1, 0]}
+COMPUERTAS = {"AND": [0, 0, 0, 1]}
 
 
 def p(v):
@@ -92,39 +91,38 @@ with st.sidebar:
         st.session_state["run"] = dict(modelo=modelo, res=res, pdf=pdf, eta=eta, nombre=nombre)
 
 run = st.session_state.get("run")
-c2, c3 = st.columns([1, 1.1], gap="large")
 
 # ---------------------------- Entrenamiento (REQ 4 y 5) ----------------------------
-with c2:
-    st.subheader("Entrenamiento")
-    if not run:
-        st.info("Configura los parámetros y pulsa **Entrenar**.")
+st.subheader("Entrenamiento")
+if not run:
+    st.info("Configura los parámetros y pulsa **Entrenar**.")
+else:
+    res = run["res"]
+    resumen = f"W₁ = {fmt(res.w1)}, W₂ = {fmt(res.w2)}, b = {fmt(res.b)}"
+    if res.convergio:
+        st.success(f"Convergió en {res.epocas_ejecutadas} época(s). {resumen}")
     else:
-        res = run["res"]
-        resumen = f"W₁ = {fmt(res.w1)}, W₂ = {fmt(res.w2)}, b = {fmt(res.b)}"
-        if res.convergio:
-            st.success(f"Convergió en {res.epocas_ejecutadas} época(s). {resumen}")
-        else:
-            st.warning(f"No convergió en {res.epocas_ejecutadas} época(s). {resumen}")
-        st.dataframe(pd.DataFrame([{"Época": e.epoca, "W₁": fmt(e.w1), "W₂": fmt(e.w2),
-                                    "Bias (b)": fmt(e.b), "Errores": e.errores}
-                                   for e in res.epochs]),
-                     hide_index=True, use_container_width=True)
-        st.download_button("Descargar informe PDF", run["pdf"],
-                           file_name=f"informe_perceptron_{run['nombre']}.pdf",
-                           mime="application/pdf")
+        st.warning(f"No convergió en {res.epocas_ejecutadas} época(s). {resumen}")
+    st.dataframe(pd.DataFrame([{"Época": e.epoca, "W₁": fmt(e.w1), "W₂": fmt(e.w2),
+                                "Bias (b)": fmt(e.b), "Errores": e.errores}
+                               for e in res.epochs]),
+                 hide_index=True, use_container_width=True,
+                 height=min(38 * (len(res.epochs) + 1) + 3, 600))
+    st.download_button("Descargar informe PDF", run["pdf"],
+                       file_name=f"informe_perceptron_{run['nombre']}.pdf",
+                       mime="application/pdf")
 
 # ---------------------------- Cálculos por época (REQ 3) ----------------------------
-with c3:
-    st.subheader("Cálculos por época")
-    mostrar = st.toggle("Mostrar cálculos", value=True)
-    if not run:
-        st.caption("Aquí aparecerá el procedimiento de la época seleccionada.")
-    elif mostrar:
-        ep = st.selectbox("Época", [e.epoca for e in run["res"].epochs])
-        for s in (s for s in run["res"].steps if s.epoca == ep):
-            st.markdown(f"**Muestra {s.muestra}:** $(x_1, x_2) = ({fmt(s.x1)}, {fmt(s.x2)})$, $t = {s.t}$")
-            st.latex(latex_muestra(s, run["eta"]))
+st.subheader("Cálculos por época")
+if not run:
+    st.caption("Aquí aparecerá el procedimiento de cada época.")
+else:
+    for e in run["res"].epochs:
+        with st.expander(f"Época {e.epoca} — errores: {e.errores}", expanded=(e.epoca == 1)):
+            for s in (s for s in run["res"].steps if s.epoca == e.epoca):
+                st.markdown(f"**Muestra {s.muestra}:** $(x_1, x_2) = ({fmt(s.x1)}, {fmt(s.x2)})$, $t = {s.t}$")
+                st.latex(latex_muestra(s, run["eta"]))
+            st.markdown(f"Al terminar: $W_1 = {fmt(e.w1)}$, $W_2 = {fmt(e.w2)}$, $b = {fmt(e.b)}$")
 
 # ---------------------------- Esquema y prueba (REQ 1 y 6) ----------------------------
 st.divider()
@@ -149,3 +147,4 @@ with izq:
     else:
         st.caption("Pesos finales tras el entrenamiento y evaluación de la entrada de prueba.")
         esquema(m.w1, m.w2, m.b, x1, x2, z, y)
+
